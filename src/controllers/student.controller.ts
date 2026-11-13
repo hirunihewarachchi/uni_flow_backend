@@ -1,6 +1,10 @@
 
 import { Request, Response } from "express";
-import { registerStudent } from "../services/student.service";
+
+import {
+    registerStudent,
+    getAllStudents
+} from "../services/student.service";
 
 // Register student controller
 export const createStudent = async (
@@ -31,7 +35,6 @@ export const createStudent = async (
             });
         }
 
-        // Register student through service
         const student = await registerStudent({
             registrationNumber,
             firstName,
@@ -53,6 +56,28 @@ export const createStudent = async (
             message: error instanceof Error
                 ? error.message
                 : "Student registration failed"
+        });
+    }
+};
+
+// Get all registered students
+export const fetchAllStudents = async (
+    req: Request,
+    res: Response
+) => {
+    try {
+        const students = await getAllStudents();
+
+        return res.status(200).json({
+            success: true,
+            message: "Students retrieved successfully",
+            data: students
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "Failed to retrieve students"
         });
     }
 };

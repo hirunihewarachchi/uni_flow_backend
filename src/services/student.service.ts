@@ -1,6 +1,5 @@
 
-import Student, { IStudent } from "../models/student.model";
-
+import Student from "../models/student.model";
 // Student registration data
 interface StudentRegistrationData {
     registrationNumber: string;
@@ -42,3 +41,14 @@ export const registerStudent = async (
 
     return student;
 };
+
+
+// Get all registered students
+export const getAllStudents = async () => {
+
+    const students = await Student.find()
+        .sort({ createdAt: -1 });
+
+    return students;
+};
+
