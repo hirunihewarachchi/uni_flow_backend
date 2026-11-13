@@ -205,3 +205,46 @@ export const editStudent = async (
     }
 };
 
+
+// Delete student controller
+export const removeStudent = async (
+    req: Request,
+    res: Response
+) => {
+    try {
+        const id = req.params.id;
+
+        // Validate student ID
+        if (
+            typeof id !== "string" ||
+            !/^[0-9a-fA-F]{24}$/.test(id)
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid student ID"
+            });
+        }
+
+        // Delete student
+        const student = await deleteStudent(id);
+
+        if (!student) {
+            return res.status(404).json({
+                success: false,
+                message: "Student not found"
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Student deleted successfully"
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "Failed to delete student"
+        });
+    }
+};
+

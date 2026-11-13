@@ -1,6 +1,6 @@
 
 import { Router } from "express";
-import { createStudent, fetchAllStudents, fetchStudentById, editStudent } from "../controllers/student.controller";
+import { createStudent, fetchAllStudents, fetchStudentById, editStudent, removeStudent } from "../controllers/student.controller";
 import { authenticate } from "../middleware/auth.middleware";
 import { authorizeRoles } from "../middleware/role.middleware";
 import { UserRole } from "../models/user.model";
@@ -51,5 +51,18 @@ router.put(
     ),
     editStudent
 );
+
+
+// Delete student
+router.delete(
+    "/:id",
+    authenticate,
+    authorizeRoles(
+        UserRole.SUPER_ADMIN,
+        UserRole.MARKETING_OFFICER
+    ),
+    removeStudent
+);
+
 
 export default router;

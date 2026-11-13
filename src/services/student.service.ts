@@ -89,3 +89,11 @@ export const updateStudent = async (
 };
 
 
+ // Delete student by ID
+export const deleteStudent = async (studentId: string) => {
+
+    const student = await Student.findByIdAndDelete(studentId);
+
+    return student;
+};
+
