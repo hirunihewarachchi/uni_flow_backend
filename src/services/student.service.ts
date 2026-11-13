@@ -52,3 +52,11 @@ export const getAllStudents = async () => {
     return students;
 };
 
+// Get student by ID
+export const getStudentById = async (studentId: string) => {
+
+    const student = await Student.findById(studentId);
+
+    return student;
+};
+

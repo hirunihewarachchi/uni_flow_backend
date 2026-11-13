@@ -3,7 +3,8 @@ import { Request, Response } from "express";
 
 import {
     registerStudent,
-    getAllStudents
+    getAllStudents,
+    getStudentById
 } from "../services/student.service";
 
 // Register student controller
@@ -78,6 +79,55 @@ export const fetchAllStudents = async (
         return res.status(500).json({
             success: false,
             message: "Failed to retrieve students"
+        });
+    }
+};
+
+
+// Get student by ID controller
+export const fetchStudentById = async (
+    req: Request,
+    res: Response
+) => {
+    try {
+        const id = req.params.id;
+
+        // Validate ID type
+        if (typeof id !== "string") {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid student ID"
+            });
+        }
+
+        // Validate MongoDB ID format
+        if (!/^[0-9a-fA-F]{24}$/.test(id)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid student ID"
+            });
+        }
+
+        // Find student by ID
+        const student = await getStudentById(id);
+
+        if (!student) {
+            return res.status(404).json({
+                success: false,
+                message: "Student not found"
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Student retrieved successfully",
+            data: student
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "Failed to retrieve student"
         });
     }
 };
