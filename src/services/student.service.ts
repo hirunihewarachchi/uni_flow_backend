@@ -1,0 +1,44 @@
+
+import Student, { IStudent } from "../models/student.model";
+
+// Student registration data
+interface StudentRegistrationData {
+    registrationNumber: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    address?: string;
+}
+
+// Register a new student
+export const registerStudent = async (
+    studentData: StudentRegistrationData
+) => {
+
+    // Check whether registration number already exists
+    const existingRegistration = await Student.findOne({
+        registrationNumber: studentData.registrationNumber
+    });
+
+    if (existingRegistration) {
+        throw new Error("Registration number already exists");
+    }
+
+    // Check whether email already exists
+    const existingEmail = await Student.findOne({
+        email: studentData.email
+    });
+
+    if (existingEmail) {
+        throw new Error("Student email already exists");
+    }
+
+    // Create student record
+    const student = await Student.create({
+        ...studentData,
+        email: studentData.email.toLowerCase()
+    });
+
+    return student;
+};
