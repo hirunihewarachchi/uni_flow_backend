@@ -4,7 +4,9 @@ import { Request, Response } from "express";
 import {
     registerStudent,
     getAllStudents,
-    getStudentById
+    getStudentById,
+    updateStudent,
+    deleteStudent
 } from "../services/student.service";
 
 // Register student controller
@@ -131,3 +133,75 @@ export const fetchStudentById = async (
         });
     }
 };
+
+
+// Update student controller
+export const editStudent = async (
+    req: Request,
+    res: Response
+) => {
+    try {
+        const id = req.params.id;
+
+        if (typeof id !== "string" ||
+            !/^[0-9a-fA-F]{24}$/.test(id)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid student ID"
+            });
+        }
+
+        const {
+            registrationNumber,
+            firstName,
+            lastName,
+            email,
+            phone,
+            address
+        } = req.body;
+
+        if (
+            !registrationNumber ||
+            !firstName ||
+            !lastName ||
+            !email ||
+            !phone
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "Please provide all required student details"
+            });
+        }
+
+        const student = await updateStudent(id, {
+            registrationNumber,
+            firstName,
+            lastName,
+            email,
+            phone,
+            address
+        });
+
+        if (!student) {
+            return res.status(404).json({
+                success: false,
+                message: "Student not found"
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Student updated successfully",
+            data: student
+        });
+
+    } catch (error) {
+        return res.status(400).json({
+            success: false,
+            message: error instanceof Error
+                ? error.message
+                : "Student update failed"
+        });
+    }
+};
+

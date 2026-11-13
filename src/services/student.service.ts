@@ -60,3 +60,32 @@ export const getStudentById = async (studentId: string) => {
     return student;
 };
 
+
+ // Update student details
+export const updateStudent = async (
+    studentId: string,
+    studentData: {
+        registrationNumber: string;
+        firstName: string;
+        lastName: string;
+        email: string;
+        phone: string;
+        address?: string;
+    }
+) => {
+    const student = await Student.findByIdAndUpdate(
+        studentId,
+        {
+            ...studentData,
+            email: studentData.email.toLowerCase()
+        },
+        {
+            new: true,
+            runValidators: true
+        }
+    );
+
+    return student;
+};
+
+
