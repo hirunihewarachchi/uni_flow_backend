@@ -1,15 +1,15 @@
-
 import { Request, Response } from "express";
-
 import {
     registerStudent,
+    registerStudentByMarketing,
     getAllStudents,
     getStudentById,
     updateStudent,
     deleteStudent
 } from "../services/student.service";
+import { AuthRequest } from "../middleware/auth.middleware";
 
-// Register student controller
+// Register student controller (Existing endpoint)
 export const createStudent = async (
     req: Request,
     res: Response
@@ -21,7 +21,9 @@ export const createStudent = async (
             lastName,
             email,
             phone,
-            address
+            address,
+            courseCode,
+            batchNumber
         } = req.body;
 
         // Validate required fields
@@ -44,7 +46,9 @@ export const createStudent = async (
             lastName,
             email,
             phone,
-            address
+            address,
+            courseCode,
+            batchNumber
         });
 
         return res.status(201).json({
@@ -63,13 +67,65 @@ export const createStudent = async (
     }
 };
 
+// Marketing Student Registration (Auto generates HDSE75-12345 ID and student,batch@ijse.com email)
+export const createMarketingStudent = async (
+    req: Request,
+    res: Response
+) => {
+    try {
+        const firstName = req.body.firstName;
+        const lastName = req.body.lastName;
+        const email = req.body.email;
+        const phone = req.body.phone;
+        const course = req.body.course || req.body.courseCode;
+        const batch = req.body.batch || req.body.batchNumber;
+        const address = req.body.address;
+        const admissionRequestId = req.body.admissionRequestId;
+
+        if (!firstName || !lastName || !email || !phone || !course || !batch) {
+            return res.status(400).json({
+                success: false,
+                message: "Please provide all required details (first name, last name, email, phone, course, batch)"
+            });
+        }
+
+        const result = await registerStudentByMarketing({
+            firstName,
+            lastName,
+            email,
+            phone,
+            course,
+            batch,
+            address,
+            admissionRequestId
+        });
+
+        return res.status(201).json({
+            success: true,
+            message: `Student registered successfully with ID ${result.credentials.studentId}`,
+            data: result
+        });
+    } catch (error) {
+        return res.status(400).json({
+            success: false,
+            message: error instanceof Error ? error.message : "Student registration failed"
+        });
+    }
+};
+
 // Get all registered students
 export const fetchAllStudents = async (
     req: Request,
     res: Response
 ) => {
     try {
-        const students = await getAllStudents();
+        const { courseCode, batchNumber, search } = req.query;
+
+        const students = await getAllStudents({
+            courseCode: courseCode as string,
+            batchNumber: batchNumber as string,
+            search: search as string
+        });
 
         return res.status(200).json({
             success: true,
@@ -85,7 +141,6 @@ export const fetchAllStudents = async (
     }
 };
 
-
 // Get student by ID controller
 export const fetchStudentById = async (
     req: Request,
@@ -94,24 +149,15 @@ export const fetchStudentById = async (
     try {
         const id = req.params.id;
 
-        // Validate ID type
-        if (typeof id !== "string") {
+        if (!id) {
             return res.status(400).json({
                 success: false,
-                message: "Invalid student ID"
+                message: "Student ID parameter is required"
             });
         }
 
-        // Validate MongoDB ID format
-        if (!/^[0-9a-fA-F]{24}$/.test(id)) {
-            return res.status(400).json({
-                success: false,
-                message: "Invalid student ID"
-            });
-        }
-
-        // Find student by ID
-        const student = await getStudentById(id);
+        // Find student by ID or studentId
+        const student = await getStudentById(id as string);
 
         if (!student) {
             return res.status(404).json({
@@ -134,7 +180,6 @@ export const fetchStudentById = async (
     }
 };
 
-
 // Update student controller
 export const editStudent = async (
     req: Request,
@@ -143,43 +188,28 @@ export const editStudent = async (
     try {
         const id = req.params.id;
 
-        if (typeof id !== "string" ||
-            !/^[0-9a-fA-F]{24}$/.test(id)) {
-            return res.status(400).json({
-                success: false,
-                message: "Invalid student ID"
-            });
-        }
-
         const {
             registrationNumber,
             firstName,
             lastName,
             email,
             phone,
-            address
+            address,
+            courseCode,
+            batchNumber,
+            status
         } = req.body;
 
-        if (
-            !registrationNumber ||
-            !firstName ||
-            !lastName ||
-            !email ||
-            !phone
-        ) {
-            return res.status(400).json({
-                success: false,
-                message: "Please provide all required student details"
-            });
-        }
-
-        const student = await updateStudent(id, {
+        const student = await updateStudent(id as string, {
             registrationNumber,
             firstName,
             lastName,
             email,
             phone,
-            address
+            address,
+            courseCode,
+            batchNumber,
+            status
         });
 
         if (!student) {
@@ -205,7 +235,6 @@ export const editStudent = async (
     }
 };
 
-
 // Delete student controller
 export const removeStudent = async (
     req: Request,
@@ -214,19 +243,8 @@ export const removeStudent = async (
     try {
         const id = req.params.id;
 
-        // Validate student ID
-        if (
-            typeof id !== "string" ||
-            !/^[0-9a-fA-F]{24}$/.test(id)
-        ) {
-            return res.status(400).json({
-                success: false,
-                message: "Invalid student ID"
-            });
-        }
-
         // Delete student
-        const student = await deleteStudent(id);
+        const student = await deleteStudent(id as string);
 
         if (!student) {
             return res.status(404).json({
@@ -247,4 +265,3 @@ export const removeStudent = async (
         });
     }
 };
-

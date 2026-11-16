@@ -1,13 +1,17 @@
-
 import mongoose, { Schema, Document } from "mongoose";
 
-// Available user roles in UniFlow
+// Available user roles in IJSE
 export enum UserRole {
+    ADMIN = "ADMIN",
     SUPER_ADMIN = "SUPER_ADMIN",
+    MARKETING = "MARKETING",
     MARKETING_OFFICER = "MARKETING_OFFICER",
-    FINANCE_OFFICER = "FINANCE_OFFICER",
+    ACADEMIC = "ACADEMIC",
     ACADEMIC_OFFICER = "ACADEMIC_OFFICER",
+    EXAM = "EXAM",
     EXAM_OFFICER = "EXAM_OFFICER",
+    FINANCE = "FINANCE",
+    FINANCE_OFFICER = "FINANCE_OFFICER",
     LECTURER = "LECTURER",
     STUDENT = "STUDENT"
 }
@@ -16,11 +20,15 @@ export enum UserRole {
 export interface IUser extends Document {
     firstName: string;
     lastName: string;
-    email: string;
+    email: string; // personal email or institutional login identifier
+    institutionalId?: string; // studentName,batchNo@ijse.com
     password: string;
     phone?: string;
     role: UserRole;
     isActive: boolean;
+    mustChangePassword?: boolean;
+    studentId?: string; // e.g. HDSE75-12345
+    department?: string;
 }
 
 // User schema
@@ -46,10 +54,17 @@ const userSchema = new Schema<IUser>(
             trim: true
         },
 
+        institutionalId: {
+            type: String,
+            trim: true,
+            lowercase: true,
+            sparse: true
+        },
+
         password: {
             type: String,
             required: true,
-            minlength: 8
+            minlength: 6
         },
 
         phone: {
@@ -67,6 +82,21 @@ const userSchema = new Schema<IUser>(
         isActive: {
             type: Boolean,
             default: true
+        },
+
+        mustChangePassword: {
+            type: Boolean,
+            default: false
+        },
+
+        studentId: {
+            type: String,
+            trim: true
+        },
+
+        department: {
+            type: String,
+            trim: true
         }
     },
     {
