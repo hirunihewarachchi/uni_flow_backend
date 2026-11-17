@@ -1,4 +1,3 @@
-import nodemailer from "nodemailer";
 
 interface SendRecoveryEmailOptions {
     toEmail: string;
@@ -7,17 +6,38 @@ interface SendRecoveryEmailOptions {
     identifier: string;
 }
 
+const escapeHtml = (value: string): string => {
+    return value
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+};
+
 export const sendRecoveryCodeEmail = async ({
     toEmail,
     studentName,
     recoveryCode,
     identifier
-}: SendRecoveryEmailOptions): Promise<{ success: boolean; isDevFallback: boolean }> => {
-    const smtpHost = process.env.SMTP_HOST;
-    const smtpPort = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : 587;
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPass = process.env.SMTP_PASS;
-    const fromAddress = process.env.SMTP_FROM || '"IJSE UniFlow Portal" <no-reply@uniflow.lk>';
+}: SendRecoveryEmailOptions): Promise<{
+    success: boolean;
+    isDevFallback: boolean;
+}> => {
+
+    const brevoApiKey = process.env.BREVO_API_KEY;
+    const senderEmail = process.env.BREVO_SENDER_EMAIL;
+    const senderName = process.env.BREVO_SENDER_NAME || "IJSE UniFlow";
+
+    if (!brevoApiKey || !senderEmail) {
+        throw new Error(
+            "Brevo configuration missing. Check BREVO_API_KEY and BREVO_SENDER_EMAIL."
+        );
+    }
+
+    const safeName = escapeHtml(studentName || "Student");
+    const safeIdentifier = escapeHtml(identifier);
+    const safeCode = escapeHtml(recoveryCode);
 
     const htmlContent = `
     <!DOCTYPE html>
@@ -25,49 +45,122 @@ export const sendRecoveryCodeEmail = async ({
     <head>
         <meta charset="utf-8">
         <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f7f7f7; margin: 0; padding: 20px; color: #171717; }
-            .container { max-width: 540px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e5e5e5; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-            .header { background: #171717; padding: 28px; text-align: center; }
-            .logo { font-size: 32px; font-weight: 900; color: #ffffff; margin: 0; letter-spacing: 1px; }
-            .logo-dot { color: #D71920; }
-            .content { padding: 32px; }
-            .greeting { font-size: 18px; font-weight: 700; margin-bottom: 12px; }
-            .text { font-size: 14px; line-height: 1.6; color: #525252; margin-bottom: 24px; }
-            .code-box { background: #fff1f2; border: 2px dashed #D71920; border-radius: 10px; padding: 18px; text-align: center; margin-bottom: 24px; }
-            .code-label { font-size: 12px; font-weight: 600; text-transform: uppercase; color: #9f1239; letter-spacing: 1px; margin-bottom: 6px; }
-            .code-value { font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #D71920; margin: 0; font-family: monospace; }
-            .meta-box { background: #f9fafb; border-radius: 8px; padding: 12px 16px; font-size: 12px; color: #6b7280; margin-bottom: 24px; border: 1px solid #f3f4f6; }
-            .footer { background: #fafafa; border-top: 1px solid #e5e5e5; padding: 18px; text-align: center; font-size: 11px; color: #a3a3a3; }
+            body {
+                font-family: Arial, sans-serif;
+                background-color: #f7f7f7;
+                margin: 0;
+                padding: 20px;
+                color: #171717;
+            }
+            .container {
+                max-width: 540px;
+                margin: 0 auto;
+                background: #ffffff;
+                border-radius: 12px;
+                overflow: hidden;
+                border: 1px solid #e5e5e5;
+            }
+            .header {
+                background: #171717;
+                padding: 28px;
+                text-align: center;
+            }
+            .logo {
+                font-size: 32px;
+                font-weight: 900;
+                color: #ffffff;
+            }
+            .logo-dot {
+                color: #D71920;
+            }
+            .content {
+                padding: 32px;
+            }
+            .greeting {
+                font-size: 18px;
+                font-weight: 700;
+                margin-bottom: 12px;
+            }
+            .text {
+                font-size: 14px;
+                line-height: 1.6;
+                color: #525252;
+                margin-bottom: 24px;
+            }
+            .code-box {
+                background: #fff1f2;
+                border: 2px dashed #D71920;
+                border-radius: 10px;
+                padding: 18px;
+                text-align: center;
+                margin-bottom: 24px;
+            }
+            .code-label {
+                font-size: 12px;
+                font-weight: 600;
+                color: #9f1239;
+                margin-bottom: 6px;
+            }
+            .code-value {
+                font-size: 36px;
+                font-weight: 800;
+                letter-spacing: 8px;
+                color: #D71920;
+                margin: 0;
+            }
+            .meta-box {
+                background: #f9fafb;
+                border-radius: 8px;
+                padding: 12px 16px;
+                font-size: 12px;
+                color: #6b7280;
+                margin-bottom: 24px;
+            }
+            .footer {
+                background: #fafafa;
+                border-top: 1px solid #e5e5e5;
+                padding: 18px;
+                text-align: center;
+                font-size: 11px;
+                color: #a3a3a3;
+            }
         </style>
     </head>
     <body>
         <div class="container">
             <div class="header">
                 <div class="logo">IJSE<span class="logo-dot">.</span></div>
-                <div style="color: #a3a3a3; font-size: 12px; margin-top: 6px;">Institute of Java & Software Engineering</div>
-            </div>
-            <div class="content">
-                <div class="greeting">Hello ${studentName || "Student"},</div>
-                <div class="text">
-                    We received a request to reset your password for your IJSE UniFlow student account.
-                    Use the 6-digit recovery code below to verify your account and set a new password.
+                <div style="color:#a3a3a3;font-size:12px;margin-top:6px;">
+                    Institute of Java & Software Engineering
                 </div>
-                
+            </div>
+
+            <div class="content">
+                <div class="greeting">Hello ${safeName},</div>
+
+                <div class="text">
+                    We received a request to reset your password
+                    for your IJSE UniFlow student account.
+                    Use the recovery code below to verify your account.
+                </div>
+
                 <div class="code-box">
-                    <div class="code-label">Your Password Recovery Code</div>
-                    <div class="code-value">${recoveryCode}</div>
+                    <div class="code-label">YOUR PASSWORD RECOVERY CODE</div>
+                    <div class="code-value">${safeCode}</div>
                 </div>
 
                 <div class="meta-box">
-                    • <strong>Login Identifier:</strong> ${identifier}<br>
-                    • <strong>Code Expiration:</strong> 15 minutes<br>
-                    • If you did not request this password reset, please ignore this email or contact administration immediately.
+                    <strong>Login Identifier:</strong> ${safeIdentifier}<br>
+                    <strong>Code Expiration:</strong> 15 minutes<br><br>
+                    If you did not request this password reset,
+                    please ignore this email.
                 </div>
 
-                <div class="text" style="font-size: 12px; color: #737373;">
-                    For security reasons, never share this recovery code with anyone.
+                <div class="text">
+                    For security reasons, never share this recovery code.
                 </div>
             </div>
+
             <div class="footer">
                 © 2026 IJSE UniFlow • Sri Lanka's No. 1 Software Engineering Institute
             </div>
@@ -76,61 +169,58 @@ export const sendRecoveryCodeEmail = async ({
     </html>
     `;
 
-    // Check if SMTP or Gmail service is configured
-    const isGmail = process.env.SMTP_SERVICE === "gmail" || 
-                    (smtpHost && smtpHost.toLowerCase().includes("gmail")) || 
-                    (smtpUser && smtpUser.toLowerCase().includes("@gmail.com"));
-
-    if (smtpUser && smtpPass) {
-        try {
-            const transportOptions: any = isGmail
-                ? {
-                    service: "gmail",
-                    auth: {
-                        user: smtpUser,
-                        pass: smtpPass
-                    }
-                }
-                : {
-                    host: smtpHost || "smtp.gmail.com",
-                    port: smtpPort,
-                    secure: process.env.SMTP_SECURE === "true" || smtpPort === 465,
-                    auth: {
-                        user: smtpUser,
-                        pass: smtpPass
-                    }
-                };
-
-            const transporter = nodemailer.createTransport(transportOptions);
-
-            await transporter.sendMail({
-                from: fromAddress,
-                to: toEmail,
-                subject: `IJSE UniFlow - Password Recovery Code: ${recoveryCode}`,
-                text: `Your IJSE UniFlow password recovery code is: ${recoveryCode}. It expires in 15 minutes.`,
-                html: htmlContent
-            });
-
-            console.log(`[EMAIL DISPATCHED] Successfully sent real recovery email to ${toEmail}`);
-            return { success: true, isDevFallback: false };
-        } catch (error: any) {
-            console.error(`[EMAIL ERROR] Failed to send email via SMTP to ${toEmail}:`, error.message || error);
-            if (isGmail && error.message?.includes("Invalid login")) {
-                console.warn("[GMAIL NOTICE] For Gmail accounts, please use a Google App Password (16 characters) generated under Account Security -> 2-Step Verification -> App passwords.");
+    try {
+        const response = await fetch(
+            "https://api.brevo.com/v3/smtp/email",
+            {
+                method: "POST",
+                headers: {
+                    "accept": "application/json",
+                    "api-key": brevoApiKey,
+                    "content-type": "application/json"
+                },
+                body: JSON.stringify({
+                    sender: {
+                        name: senderName,
+                        email: senderEmail
+                    },
+                    to: [
+                        {
+                            email: toEmail
+                        }
+                    ],
+                    subject: "IJSE UniFlow - Password Recovery Code",
+                    textContent:
+                        `Hello ${studentName || "Student"}, ` +
+                        `your IJSE UniFlow recovery code is ${recoveryCode}. ` +
+                        `It expires in 15 minutes.`,
+                    htmlContent
+                })
             }
-            // Fall through to dev console log
+        );
+
+        if (!response.ok) {
+            const errorDetails = await response.text();
+
+            console.error("[BREVO EMAIL ERROR]", response.status, errorDetails);
+
+            throw new Error(
+                `Brevo rejected the email request (${response.status}).`
+            );
         }
+
+        console.log(`[BREVO EMAIL SENT] Email accepted for ${toEmail}`);
+
+        return {
+            success: true,
+            isDevFallback: false
+        };
+
+    } catch (error) {
+        console.error("[BREVO EMAIL ERROR]", error);
+
+        throw new Error(
+            "Unable to send recovery email. Please try again later."
+        );
     }
-
-    // Fallback in development/local test mode when SMTP credentials are not configured or failed
-    console.log("\n=======================================================");
-    console.log("   [IJSE EMAIL SERVICE - REAL EMAIL RECOVERY CODE]");
-    console.log(`   Destination Real Email: ${toEmail}`);
-    console.log(`   Account Identifier:     ${identifier}`);
-    console.log(`   Student Name:           ${studentName || "Student"}`);
-    console.log(`   Recovery Code:          ${recoveryCode}`);
-    console.log("   Code Validity:          15 minutes");
-    console.log("=======================================================\n");
-
-    return { success: true, isDevFallback: true };
 };
