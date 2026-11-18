@@ -20,9 +20,22 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Legacy endpoints
+// Legacy and direct endpoints
 app.use("/api/auth", authRoutes);
 app.use("/api/students", studentRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/academic", academicRoutes);
+app.use("/api/finance", financeRoutes);
+app.use("/api/exams", examRoutes);
+app.use("/api/lectures", lectureRoutes);
+app.use("/api/public", publicRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/admissions", admissionRoutes);
+app.use("/api/ai", aiRoutes);
+
+// Root shortcut endpoints
+app.use("/auth", authRoutes);
+app.use("/admin", adminRoutes);
 
 // Modern v1 API endpoints
 app.use("/api/v1/auth", authRoutes);

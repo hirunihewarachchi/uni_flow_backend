@@ -28,6 +28,7 @@ export interface MarketingRegistrationData {
     batch: string; // e.g. "HDSE-75"
     address?: string;
     admissionRequestId?: string;
+    password?: string;
 }
 
 // Register a new student (Existing function preserved)
@@ -72,8 +73,8 @@ export const registerStudentByMarketing = async (data: MarketingRegistrationData
     // 2. Generate unique institutional login identifier (e.g. hiruni,hdse75@ijse.com)
     const institutionalIdentifier = await generateInstitutionalEmail(firstName, batch);
 
-    // 3. Initial password is the generated student ID
-    const initialPassword = generatedId;
+    // 3. Initial password is provided password or the generated student ID
+    const initialPassword = (data.password && data.password.trim()) || generatedId;
     const hashedPassword = await bcrypt.hash(initialPassword, 12);
 
     // 4. Create Student User Account
@@ -87,7 +88,8 @@ export const registerStudentByMarketing = async (data: MarketingRegistrationData
         role: UserRole.STUDENT,
         isActive: true,
         mustChangePassword: true,
-        studentId: generatedId
+        studentId: generatedId,
+        batchNumber: batch
     });
 
     // 5. Create Student Record

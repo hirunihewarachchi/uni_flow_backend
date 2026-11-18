@@ -24,7 +24,7 @@ export const createExamination = async (data: {
 export const getExaminations = async (batchNumber?: string) => {
     const query: any = {};
     if (batchNumber && batchNumber !== "All" && batchNumber !== "ALL") {
-        query.batchNumber = batchNumber;
+        query.batchNumber = { $regex: new RegExp(`^${batchNumber.trim().replace(/[- ]+/g, "[- ]?")}$`, "i") };
     }
     return await Examination.find(query).sort({ date: 1, startTime: 1 });
 };
@@ -43,6 +43,7 @@ export const enterStudentMarks = async (data: {
     marks: number;
     modifiedBy?: string;
     reason?: string;
+    isPublished?: boolean;
 }) => {
     const { grade, status } = calculateGrade(data.marks);
 
@@ -51,6 +52,8 @@ export const enterStudentMarks = async (data: {
         subject: data.subject,
         examType: data.examType || "Final Examination"
     });
+
+    const isPublished = data.isPublished !== undefined ? data.isPublished : true;
 
     if (existingResult) {
         // Log to audit history
@@ -65,6 +68,10 @@ export const enterStudentMarks = async (data: {
         existingResult.marks = data.marks;
         existingResult.grade = grade;
         existingResult.status = status;
+        existingResult.isPublished = isPublished;
+        if (isPublished && !existingResult.publishedAt) {
+            existingResult.publishedAt = new Date();
+        }
         return await existingResult.save();
     }
 
@@ -75,14 +82,15 @@ export const enterStudentMarks = async (data: {
         batchNumber: data.batchNumber,
         subject: data.subject,
         moduleCode: data.moduleCode,
-        semester: data.semester,
+        semester: data.semester || "Semester 1",
         examType: data.examType || "Final Examination",
         examDate: data.examDate,
         marks: data.marks,
         totalMarks: 100,
         grade,
         status,
-        isPublished: false
+        isPublished,
+        publishedAt: isPublished ? new Date() : undefined
     });
 };
 
@@ -114,11 +122,13 @@ export const togglePublishResults = async (
 };
 
 // Get results for a student (Only published results are returned for students)
-export const getStudentPublishedResults = async (studentId: string) => {
+export const getStudentPublishedResults = async (studentId: string | string[]) => {
+    const ids = Array.isArray(studentId) ? studentId : [studentId];
+    const regexes = ids.filter(Boolean).map(id => new RegExp(`^${id.trim().replace(/[- ]+/g, "[- ]?")}$`, "i"));
     return await ExaminationResult.find({
-        studentId,
+        studentId: { $in: regexes },
         isPublished: true
-    }).sort({ examDate: -1 });
+    }).sort({ examDate: -1, createdAt: -1 });
 };
 
 // Get all results for exam officers / administrators

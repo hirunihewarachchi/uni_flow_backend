@@ -45,8 +45,14 @@ export const getAllBatches = async () => {
 };
 
 export const getStudentsByBatch = async (batchNumber: string) => {
+    const clean = (batchNumber || "").trim();
+    if (!clean) return [];
+    const regex = new RegExp(`^${clean.replace(/[- ]+/g, "[- ]?")}$`, "i");
     return await Student.find({
-        $or: [{ batchNumber: batchNumber }, { batchNumber: batchNumber.replace("-", " ") }]
+        $or: [
+            { batchNumber: regex },
+            { batchNumber: clean }
+        ]
     }).sort({ firstName: 1 });
 };
 
@@ -163,7 +169,7 @@ export const createLectureSession = async (data: {
 export const getLectureSchedules = async (batchNumber?: string) => {
     const query: any = {};
     if (batchNumber && batchNumber !== "ALL" && batchNumber !== "All") {
-        query.batchNumber = batchNumber;
+        query.batchNumber = { $regex: new RegExp(`^${batchNumber.trim().replace(/[- ]+/g, "[- ]?")}$`, "i") };
     }
     return await LectureSchedule.find(query).sort({ date: 1, startTime: 1 });
 };

@@ -49,8 +49,7 @@ export const generateStudentId = async (courseCode: string, batchNumber: string)
 
 /**
  * Generates a unique institutional login identifier.
- * Required format: studentName,batchNo@ijse.com
- * Example: hiruni,hdse75@ijse.com
+ * Format: name+batch@ijse.com (without comma or dot, e.g. hirunihdse75@ijse.com)
  */
 export const generateInstitutionalEmail = async (
     firstName: string,
@@ -59,7 +58,7 @@ export const generateInstitutionalEmail = async (
     const cleanName = firstName.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
     const cleanBatch = batchNumber.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
 
-    let baseIdentifier = `${cleanName},${cleanBatch}@ijse.com`;
+    let baseIdentifier = `${cleanName}${cleanBatch}@ijse.com`;
 
     // Check for collision
     let count = 0;
@@ -71,7 +70,7 @@ export const generateInstitutionalEmail = async (
 
     while (userExists) {
         count += 1;
-        candidate = `${cleanName}${count},${cleanBatch}@ijse.com`;
+        candidate = `${cleanName}${cleanBatch}${count}@ijse.com`;
         userExists = await User.findOne({
             $or: [{ email: candidate }, { institutionalId: candidate }]
         });

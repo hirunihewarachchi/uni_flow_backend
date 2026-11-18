@@ -3,6 +3,7 @@ import { Request, Response } from "express";
 import Student, { StudentStatus } from "../models/student.model";
 import LectureSchedule from "../models/lectureSchedule.model";
 import User, { UserRole } from "../models/user.model";
+import Batch from "../models/batch.model";
 import { AuthRequest } from "../middleware/auth.middleware";
 
 export const getStudentLectureTimetable = async (
@@ -20,13 +21,20 @@ export const getStudentLectureTimetable = async (
             });
         }
 
-        const distinctBatches = await LectureSchedule.distinct("batchNumber");
-        const availableBatches = distinctBatches.length > 0 ? distinctBatches : ["HDSE-75", "HDSE-76", "HDSE-77"];
+        // Fetch dynamic batches from Batch collection & LectureSchedule collection
+        const batchDocs = await Batch.find().select("batchNumber").lean();
+        const distinctLectureBatches = await LectureSchedule.distinct("batchNumber");
+        const availableBatches = Array.from(new Set([
+            ...batchDocs.map(b => b.batchNumber),
+            ...distinctLectureBatches
+        ].filter(Boolean)));
 
         // 2. Staff & Admin Access (Lecturer, Academic, Admin, Super Admin)
         if (authReq.user.role !== UserRole.STUDENT) {
-            const requestedBatch = (req.query.batchNumber as string) || "HDSE-75";
-            const query = requestedBatch === "ALL" ? {} : { batchNumber: requestedBatch };
+            const requestedBatch = (req.query.batchNumber as string) || (availableBatches[0] || "ALL");
+            const query = (!requestedBatch || requestedBatch === "ALL")
+                ? {}
+                : { batchNumber: { $regex: new RegExp(`^${requestedBatch.trim().replace(/[- ]+/g, "[- ]?")}$`, "i") } };
 
             const lectures = await LectureSchedule.find(query)
                 .sort({ date: 1, startTime: 1 })
@@ -65,16 +73,19 @@ export const getStudentLectureTimetable = async (
                     if (student.status !== StudentStatus.ACTIVATED) {
                         student.status = StudentStatus.ACTIVATED;
                     }
+                    if (!student.batchNumber && user.batchNumber) {
+                        student.batchNumber = user.batchNumber;
+                    }
                     await student.save();
                 } else {
                     // Auto-generate profile for active student user if not yet seeded
                     student = await Student.create({
                         userId: user._id,
-                        studentId: user.studentId || `HDSE75-${Math.floor(10000 + Math.random() * 90000)}`,
+                        studentId: user.studentId || `STU-${Math.floor(10000 + Math.random() * 90000)}`,
                         firstName: user.firstName || "Student",
                         lastName: user.lastName || "Member",
                         email: user.email,
-                        batchNumber: "HDSE-75",
+                        batchNumber: user.batchNumber || (availableBatches[0] || ""),
                         status: StudentStatus.ACTIVATED
                     });
                 }
@@ -95,32 +106,31 @@ export const getStudentLectureTimetable = async (
         }
 
         if (!student.batchNumber) {
-            student.batchNumber = "HDSE-75";
-            await student.save();
+            const user = await User.findById(authReq.user.userId);
+            if (user?.batchNumber) {
+                student.batchNumber = user.batchNumber;
+                await student.save();
+            }
         }
 
-        // 5. Retrieve student's batch lectures
-        let lectures = await LectureSchedule.find({
-            batchNumber: student.batchNumber
-        })
-            .sort({ date: 1, startTime: 1 })
-            .lean();
-
-        // Fallback: If no lectures for this specific batch, fallback to HDSE-75 so timetable is never empty
-        if (!lectures || lectures.length === 0) {
+        // 5. Retrieve ONLY student's own batch lectures (Strict scoping, no hardcoded fallback)
+        let lectures: any[] = [];
+        const studentBatch = (student.batchNumber || "").trim();
+        if (studentBatch) {
+            const batchRegex = new RegExp(`^${studentBatch.replace(/[- ]+/g, "[- ]?")}$`, "i");
             lectures = await LectureSchedule.find({
-                batchNumber: "HDSE-75"
+                batchNumber: { $regex: batchRegex }
             })
                 .sort({ date: 1, startTime: 1 })
                 .lean();
         }
 
-        // 6. Return timetable
+        // 6. Return timetable strictly for student's batch
         return res.status(200).json({
             success: true,
             message: "Lecture timetable retrieved successfully",
             data: {
-                batchNumber: student.batchNumber,
+                batchNumber: student.batchNumber || "UNASSIGNED",
                 studentId: student.studentId,
                 lectures,
                 availableBatches

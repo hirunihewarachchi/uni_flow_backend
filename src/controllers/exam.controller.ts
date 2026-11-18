@@ -9,12 +9,24 @@ import {
 } from "../services/exam.service";
 import { AuthRequest } from "../middleware/auth.middleware";
 import Student from "../models/student.model";
-import User from "../models/user.model";
+import User, { UserRole } from "../models/user.model";
+import Batch from "../models/batch.model";
+import Examination from "../models/examination.model";
 
 // Examinations
 export const handleCreateExam = async (req: Request, res: Response) => {
     try {
-        const exam = await createExamination(req.body);
+        const body = req.body;
+        const exam = await createExamination({
+            batchNumber: body.batchNumber,
+            subject: body.subject || body.moduleName || (body.moduleCode ? `${body.courseCode ? body.courseCode + " - " : ""}${body.moduleCode}` : "Examination"),
+            examType: body.examType || body.type || "Final Examination",
+            date: body.date,
+            startTime: body.startTime || (body.time ? body.time.split("-")[0]?.trim() : "09:00 AM"),
+            endTime: body.endTime || (body.time && body.time.includes("-") ? body.time.split("-")[1]?.trim() : "12:00 PM"),
+            venue: body.venue || body.hall || "Main Examination Hall",
+            duration: body.duration || "3 Hours"
+        });
         return res.status(201).json({
             success: true,
             message: "Examination created successfully",
@@ -30,11 +42,62 @@ export const handleCreateExam = async (req: Request, res: Response) => {
 
 export const handleGetExams = async (req: Request, res: Response) => {
     try {
-        const { batchNumber } = req.query;
+        const authReq = req as AuthRequest;
+        let { batchNumber } = req.query;
+
+        // Dynamic distinct batches
+        const batchDocs = await Batch.find().select("batchNumber").lean();
+        const examBatches = await Examination.distinct("batchNumber");
+        const availableBatches = Array.from(new Set([
+            ...batchDocs.map(b => b.batchNumber),
+            ...examBatches
+        ].filter(Boolean)));
+
+        // If authenticated as student, strictly lock to student's own batch
+        if (authReq.user && authReq.user.role === UserRole.STUDENT) {
+            let student = await Student.findOne({ userId: authReq.user.userId });
+            if (!student) {
+                const user = await User.findById(authReq.user.userId);
+                if (user) {
+                    student = await Student.findOne({
+                        $or: [
+                            { email: user.email },
+                            { institutionalId: user.email },
+                            ...(user.studentId ? [{ studentId: user.studentId }] : [])
+                        ]
+                    });
+                    if (student && !student.batchNumber && user.batchNumber) {
+                        student.batchNumber = user.batchNumber;
+                    }
+                }
+            }
+
+            const studentBatch = student?.batchNumber;
+            if (!studentBatch) {
+                return res.status(200).json({
+                    success: true,
+                    data: [],
+                    batchNumber: "UNASSIGNED",
+                    availableBatches
+                });
+            }
+
+            const exams = await getExaminations(studentBatch);
+            return res.status(200).json({
+                success: true,
+                data: exams,
+                batchNumber: studentBatch,
+                availableBatches
+            });
+        }
+
+        // Staff / Admin / Public view
         const exams = await getExaminations(batchNumber as string);
         return res.status(200).json({
             success: true,
-            data: exams
+            data: exams,
+            batchNumber: batchNumber || "ALL",
+            availableBatches
         });
     } catch (error) {
         return res.status(500).json({
@@ -47,8 +110,42 @@ export const handleGetExams = async (req: Request, res: Response) => {
 // Marks entry
 export const handleEnterMarks = async (req: AuthRequest, res: Response) => {
     try {
+        const body = req.body;
+        const publish = body.publish !== undefined ? body.publish : (body.isPublished !== undefined ? body.isPublished : true);
+
+        // Bulk batch marks entry
+        if (Array.isArray(body.records) || Array.isArray(body.marks)) {
+            const list = body.records || body.marks;
+            const savedResults = [];
+
+            for (const item of list) {
+                const r = await enterStudentMarks({
+                    examinationId: body.examinationId || item.examinationId,
+                    studentId: item.studentId,
+                    studentName: item.studentName || item.name || "Student",
+                    batchNumber: body.batchNumber || item.batchNumber || "HDSE-75",
+                    subject: body.subject || item.subject || body.moduleName || "Examination",
+                    moduleCode: body.moduleCode || item.moduleCode,
+                    semester: body.semester || item.semester || "Semester 1",
+                    examType: body.examType || item.examType || "Final Examination",
+                    examDate: body.examDate || item.examDate || new Date().toISOString().slice(0, 10),
+                    marks: Number(item.marks ?? item.score ?? 0),
+                    modifiedBy: req.user?.userId,
+                    isPublished: publish
+                });
+                savedResults.push(r);
+            }
+
+            return res.status(200).json({
+                success: true,
+                message: "Batch examination marks recorded successfully",
+                data: savedResults
+            });
+        }
+
         const result = await enterStudentMarks({
-            ...req.body,
+            ...body,
+            isPublished: publish,
             modifiedBy: req.user?.userId
         });
         return res.status(200).json({
@@ -100,13 +197,17 @@ export const handleGetMyResults = async (req: AuthRequest, res: Response) => {
             $or: [{ userId: user._id }, { studentId: user.studentId }, { email: user.email }, { institutionalId: user.email }]
         });
 
-        const targetStudentId = student ? (student.studentId || student.registrationNumber) : user.studentId;
+        const studentIds = Array.from(new Set([
+            student?.studentId,
+            student?.registrationNumber,
+            user?.studentId
+        ].filter(Boolean) as string[]));
 
-        if (!targetStudentId) {
+        if (studentIds.length === 0) {
             return res.status(200).json({ success: true, data: [] });
         }
 
-        const results = await getStudentPublishedResults(targetStudentId);
+        const results = await getStudentPublishedResults(studentIds);
         return res.status(200).json({
             success: true,
             data: results

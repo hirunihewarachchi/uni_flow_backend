@@ -130,7 +130,17 @@ export const handleCreateLecturer = async (req: Request, res: Response) => {
 // Timetable
 export const handleCreateLecture = async (req: Request, res: Response) => {
     try {
-        const lecture = await createLectureSession(req.body);
+        const body = req.body;
+        const lecture = await createLectureSession({
+            batchNumber: body.batchNumber,
+            subject: body.subject || body.moduleName || (body.moduleCode ? `${body.courseCode ? body.courseCode + " - " : ""}${body.moduleCode}` : "Lecture"),
+            lecturer: body.lecturer || body.lecturerName || "Lecturer",
+            date: body.date,
+            startTime: body.startTime,
+            endTime: body.endTime,
+            room: body.room || body.hallNumber || body.hall || "Hall 01",
+            sessionInfo: body.sessionInfo || body.moduleCode
+        });
         return res.status(201).json({
             success: true,
             message: "Lecture session scheduled successfully",

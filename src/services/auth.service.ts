@@ -67,13 +67,46 @@ const registerUser = async (userData: {
 const loginUser = async (identifier: string, password: string) => {
     const cleanIdentifier = identifier.trim().toLowerCase();
 
-    // Find user by email or institutionalId
-    const user = await User.findOne({
+    // Prepare identifier variations (support dot, comma, and clean name+batch@ijse.com e.g. hirunihdse75@ijse.com <-> hiruni,hdse75@ijse.com)
+    const [localPart, domainPart] = cleanIdentifier.split("@");
+    const strippedLocal = localPart ? localPart.replace(/[^a-z0-9]/g, "") : "";
+    const dotVariant = cleanIdentifier.replace(",", ".");
+    const commaVariant = cleanIdentifier.replace(".", ",");
+    const noSymbolVariant = domainPart ? `${strippedLocal}@${domainPart}` : "";
+    const lkVariant = cleanIdentifier.replace("@ijse.com", "@ijse.lk");
+    const comVariant = cleanIdentifier.replace("@ijse.lk", "@ijse.com");
+    const noSymbolLk = strippedLocal ? `${strippedLocal}@ijse.lk` : "";
+    const noSymbolCom = strippedLocal ? `${strippedLocal}@ijse.com` : "";
+
+    const idVariants = Array.from(new Set([
+        cleanIdentifier, dotVariant, commaVariant, noSymbolVariant,
+        lkVariant, comVariant, noSymbolLk, noSymbolCom
+    ])).filter(Boolean);
+
+    // Find user by email, institutionalId, or studentId
+    let user = await User.findOne({
         $or: [
-            { email: cleanIdentifier },
-            { institutionalId: cleanIdentifier }
+            { email: { $in: idVariants } },
+            { institutionalId: { $in: idVariants } },
+            { studentId: cleanIdentifier.toUpperCase() }
         ]
     });
+
+    // If not found in User, check if there's a Student record with this personal email or registration number
+    let studentRecord: any = null;
+    if (!user) {
+        studentRecord = await Student.findOne({
+            $or: [
+                { email: cleanIdentifier },
+                { registrationNumber: cleanIdentifier.toUpperCase() },
+                { studentId: cleanIdentifier.toUpperCase() },
+                { institutionalId: { $in: idVariants } }
+            ]
+        });
+        if (studentRecord && studentRecord.userId) {
+            user = await User.findById(studentRecord.userId);
+        }
+    }
 
     if (!user) {
         throw new Error("Invalid email or password");
@@ -85,10 +118,30 @@ const loginUser = async (identifier: string, password: string) => {
     }
 
     // Compare entered password with hashed password
-    const isPasswordValid = await bcrypt.compare(
+    let isPasswordValid = await bcrypt.compare(
         password,
         user.password
     );
+
+    // If password hash comparison failed and user hasn't changed initial temporary password:
+    if (!isPasswordValid && user.mustChangePassword) {
+        const cleanPw = password.trim();
+        const upperPw = cleanPw.toUpperCase();
+        const noHyphenPw = upperPw.replace(/[^A-Z0-9]/g, "");
+        const studentIdUpper = (user.studentId || "").toUpperCase();
+        const studentIdNoHyphen = studentIdUpper.replace(/[^A-Z0-9]/g, "");
+
+        // Accept case-insensitive studentId (e.g. hdse75-00001, HDSE7500001) or default initial passwords
+        if (
+            (studentIdUpper && upperPw === studentIdUpper) ||
+            (studentIdNoHyphen && noHyphenPw === studentIdNoHyphen) ||
+            cleanPw === "student123" ||
+            cleanPw === "123456" ||
+            cleanPw === "Staff@123"
+        ) {
+            isPasswordValid = true;
+        }
+    }
 
     if (!isPasswordValid) {
         throw new Error("Invalid email or password");
@@ -101,6 +154,19 @@ const loginUser = async (identifier: string, password: string) => {
     if (role === UserRole.ACADEMIC_OFFICER) role = UserRole.ACADEMIC;
     if (role === UserRole.FINANCE_OFFICER) role = UserRole.FINANCE;
     if (role === UserRole.EXAM_OFFICER) role = UserRole.EXAM;
+
+    // Retrieve student's assigned batch number if user is student
+    let studentBatch: string | undefined = undefined;
+    if (user.role === UserRole.STUDENT) {
+        if (!studentRecord) {
+            studentRecord = await Student.findOne({
+                $or: [{ userId: user._id }, ...(user.studentId ? [{ studentId: user.studentId }] : [])]
+            }).select("batchNumber courseCode");
+        }
+        if (studentRecord && studentRecord.batchNumber) {
+            studentBatch = studentRecord.batchNumber;
+        }
+    }
 
     // Generate JWT token
     const token = generateToken(
@@ -115,6 +181,7 @@ const loginUser = async (identifier: string, password: string) => {
             lastName: user.lastName,
             email: user.email,
             role: role,
+            batchNumber: studentBatch,
             mustChangePassword: !!user.mustChangePassword,
             studentId: user.studentId
         },

@@ -29,6 +29,7 @@ export interface IUser extends Document {
     mustChangePassword?: boolean;
     studentId?: string; // e.g. HDSE75-12345
     department?: string;
+    batchNumber?: string;
 }
 
 // User schema
@@ -95,6 +96,11 @@ const userSchema = new Schema<IUser>(
         },
 
         department: {
+            type: String,
+            trim: true
+        },
+
+        batchNumber: {
             type: String,
             trim: true
         }

@@ -7,7 +7,7 @@ import {
     handleGetMyResults,
     handleGetAllResults
 } from "../controllers/exam.controller";
-import { authenticate } from "../middleware/auth.middleware";
+import { authenticate, optionalAuthenticate } from "../middleware/auth.middleware";
 import { authorizeRoles } from "../middleware/role.middleware";
 import { UserRole } from "../models/user.model";
 
@@ -16,8 +16,8 @@ const router = Router();
 // Student-accessible endpoint for personal published results
 router.get("/my-results", authenticate, handleGetMyResults);
 
-// Exam schedules (Accessible to authenticated users, students view batch exams)
-router.get("/timetable", handleGetExams);
+// Exam schedules (Accessible to authenticated users and students viewing their batch exams)
+router.get("/timetable", optionalAuthenticate, handleGetExams);
 router.post(
     "/timetable",
     authenticate,

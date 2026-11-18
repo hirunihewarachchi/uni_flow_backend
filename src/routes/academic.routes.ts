@@ -42,10 +42,17 @@ router.post(
     handleCreateLecturer
 );
 
-// Timetable
+// Timetable & Lectures
 router.get("/timetable", handleGetLectures);
+router.get("/lectures", handleGetLectures);
 router.post(
     "/timetable",
+    authenticate,
+    authorizeRoles(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.ACADEMIC, UserRole.ACADEMIC_OFFICER),
+    handleCreateLecture
+);
+router.post(
+    "/lectures",
     authenticate,
     authorizeRoles(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.ACADEMIC, UserRole.ACADEMIC_OFFICER),
     handleCreateLecture

@@ -81,6 +81,7 @@ export const createMarketingStudent = async (
         const batch = req.body.batch || req.body.batchNumber;
         const address = req.body.address;
         const admissionRequestId = req.body.admissionRequestId;
+        const password = req.body.password;
 
         if (!firstName || !lastName || !email || !phone || !course || !batch) {
             return res.status(400).json({
@@ -97,7 +98,8 @@ export const createMarketingStudent = async (
             course,
             batch,
             address,
-            admissionRequestId
+            admissionRequestId,
+            password
         });
 
         return res.status(201).json({

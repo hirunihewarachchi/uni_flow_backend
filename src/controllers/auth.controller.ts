@@ -9,6 +9,7 @@ import {
 } from "../services/auth.service";
 import { AuthRequest } from "../middleware/auth.middleware";
 import User, { UserRole } from "../models/user.model";
+import Student from "../models/student.model";
 
 // Register controller
 export const register = async (req: Request, res: Response) => {
@@ -106,6 +107,23 @@ export const getMe = async (req: AuthRequest, res: Response) => {
             });
         }
 
+        let role = user.role;
+        if (role === UserRole.SUPER_ADMIN) role = UserRole.ADMIN;
+        if (role === UserRole.MARKETING_OFFICER) role = UserRole.MARKETING;
+        if (role === UserRole.ACADEMIC_OFFICER) role = UserRole.ACADEMIC;
+        if (role === UserRole.FINANCE_OFFICER) role = UserRole.FINANCE;
+        if (role === UserRole.EXAM_OFFICER) role = UserRole.EXAM;
+
+        let studentBatch: string | undefined = undefined;
+        if (user.role === UserRole.STUDENT) {
+            const studentDoc = await Student.findOne({
+                $or: [{ userId: user._id }, ...(user.studentId ? [{ studentId: user.studentId }] : [])]
+            }).select("batchNumber courseCode");
+            if (studentDoc && studentDoc.batchNumber) {
+                studentBatch = studentDoc.batchNumber;
+            }
+        }
+
         return res.status(200).json({
             success: true,
             message: "User authenticated successfully",
@@ -114,7 +132,9 @@ export const getMe = async (req: AuthRequest, res: Response) => {
                 firstName: user.firstName,
                 lastName: user.lastName,
                 email: user.email,
-                role: user.role,
+                role: role,
+                batchNumber: studentBatch,
+                rawRole: user.role,
                 mustChangePassword: user.mustChangePassword,
                 studentId: user.studentId
             }

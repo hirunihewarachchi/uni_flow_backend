@@ -314,17 +314,28 @@ const callGeminiAI = async (prompt: string): Promise<string | null> => {
  * calls external AI if available, and structures learning milestones & assignments.
  */
 export const analyzeStudentSkillGap = async (studentId: string) => {
+    const cleanId = (studentId || "").trim();
+    const idRegex = new RegExp(`^${cleanId.replace(/[- ]+/g, "[- ]?")}$`, "i");
+
     const student = await Student.findOne({
-        $or: [{ studentId }, { registrationNumber: studentId }]
+        $or: [
+            { studentId: idRegex },
+            { registrationNumber: idRegex },
+            { studentId: cleanId },
+            { registrationNumber: cleanId }
+        ]
     });
 
     if (!student) {
         throw new Error("Student record not found");
     }
 
-    // Retrieve published results
+    // Retrieve published results using student ID variations
+    const targetIds = [student.studentId, student.registrationNumber, cleanId].filter((id): id is string => Boolean(id));
+    const regexList = targetIds.map(id => new RegExp(`^${id.trim().replace(/[- ]+/g, "[- ]?")}$`, "i"));
+
     const results = await ExaminationResult.find({
-        studentId: student.studentId || student.registrationNumber,
+        studentId: { $in: regexList },
         isPublished: true
     });
 
@@ -438,17 +449,28 @@ export const toggleAssignmentProgress = async (studentId: string, assignmentId: 
  * Matches real academic marks to career domains and generates/retrieves career roadmaps.
  */
 export const getStudentCareerRoadmap = async (studentId: string) => {
+    const cleanId = (studentId || "").trim();
+    const idRegex = new RegExp(`^${cleanId.replace(/[- ]+/g, "[- ]?")}$`, "i");
+
     const student = await Student.findOne({
-        $or: [{ studentId }, { registrationNumber: studentId }]
+        $or: [
+            { studentId: idRegex },
+            { registrationNumber: idRegex },
+            { studentId: cleanId },
+            { registrationNumber: cleanId }
+        ]
     });
 
     if (!student) {
         throw new Error("Student record not found");
     }
 
-    // Retrieve published results
+    // Retrieve published results using student ID variations
+    const targetIds = [student.studentId, student.registrationNumber, cleanId].filter((id): id is string => Boolean(id));
+    const regexList = targetIds.map(id => new RegExp(`^${id.trim().replace(/[- ]+/g, "[- ]?")}$`, "i"));
+
     const results = await ExaminationResult.find({
-        studentId: student.studentId || student.registrationNumber,
+        studentId: { $in: regexList },
         isPublished: true
     });
 

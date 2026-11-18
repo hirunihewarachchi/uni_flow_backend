@@ -64,3 +64,37 @@ export const authenticate = (
         });
     }
 };
+
+// Optional authentication middleware (populates req.user if token is present and valid, continues otherwise)
+export const optionalAuthenticate = (
+    req: AuthRequest,
+    _res: Response,
+    next: NextFunction
+) => {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return next();
+    }
+
+    const token = authHeader.split(" ")[1];
+
+    try {
+        const payload = jwt.verify(token, JWT_SECRET);
+
+        if (
+            typeof payload !== "string" &&
+            payload.sub &&
+            Object.values(UserRole).includes(payload.role as UserRole)
+        ) {
+            req.user = {
+                userId: payload.sub,
+                role: payload.role as UserRole
+            };
+        }
+    } catch {
+        // Silently proceed for optional auth
+    }
+
+    next();
+};
