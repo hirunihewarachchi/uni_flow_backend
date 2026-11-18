@@ -4,7 +4,7 @@ export interface IAssignment {
     id: string;
     title: string;
     description: string;
-    difficulty: "Beginner" | "Intermediate" | "Advanced";
+    difficulty: "Beginner" | "Intermediate" | "Advanced" | "Honors";
     duration: string;
     completed: boolean;
 }

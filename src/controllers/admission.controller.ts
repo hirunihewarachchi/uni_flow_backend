@@ -17,11 +17,12 @@ export const submitAdmission = async (req: Request, res: Response) => {
             phone,
             dateOfBirth,
             address,
-            courseCode,
-            preferredIntake,
             qualification,
-            statement
         } = req.body;
+
+        const courseCode = req.body.courseCode || req.body.programInterest || req.body.course;
+        const preferredIntake = req.body.preferredIntake || req.body.intake;
+        const statement = req.body.statement || req.body.message;
 
         if (!fullName || !email || !phone || !courseCode) {
             return res.status(400).json({
@@ -36,7 +37,7 @@ export const submitAdmission = async (req: Request, res: Response) => {
             phone,
             dateOfBirth,
             address,
-            courseCode,
+            courseCode: String(courseCode).toUpperCase(),
             preferredIntake,
             qualification,
             statement
@@ -85,16 +86,18 @@ export const updateStatus = async (req: AuthRequest, res: Response) => {
         const { id } = req.params;
         const { status, notes } = req.body;
 
-        if (!status || !Object.values(AdmissionStatus).includes(status)) {
+        const normalizedStatus = status ? (String(status).toUpperCase() as AdmissionStatus) : null;
+
+        if (!normalizedStatus || !Object.values(AdmissionStatus).includes(normalizedStatus)) {
             return res.status(400).json({
                 success: false,
-                message: "Valid status is required"
+                message: "Valid status is required (PENDING, CONTACTED, FOLLOW_UP, APPROVED, REJECTED, REGISTERED)"
             });
         }
 
         const updated = await updateAdmissionRequestStatus(
             id as string,
-            status,
+            normalizedStatus,
             notes,
             req.user?.userId
         );
@@ -108,7 +111,7 @@ export const updateStatus = async (req: AuthRequest, res: Response) => {
 
         return res.status(200).json({
             success: true,
-            message: `Admission request status updated to ${status}`,
+            message: `Admission request status updated to ${normalizedStatus}`,
             data: updated
         });
     } catch (error) {

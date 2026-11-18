@@ -15,6 +15,7 @@ import PaymentSchedule from "../models/paymentSchedule.model";
 import Examination from "../models/examination.model";
 import ExaminationResult from "../models/result.model";
 import LectureSchedule from "../models/lectureSchedule.model";
+import Lecturer from "../models/lecturer.model";
 
 export const seedMasterData = async () => {
     try {
@@ -214,18 +215,22 @@ export const seedMasterData = async () => {
             { upsert: true, new: true }
         );
 
-        // 8. Seed Default Officer Users for Testing
+        // 8. Seed Real Department Officers & Academic Lecturers
         const officers = [
-            { firstName: "Nimal", lastName: "Perera", email: "marketing@ijse.lk", role: UserRole.MARKETING, department: "MARKETING" },
-            { firstName: "Kasun", lastName: "Silva", email: "academic@ijse.lk", role: UserRole.ACADEMIC, department: "ACADEMIC" },
-            { firstName: "Amali", lastName: "Fernando", email: "finance@ijse.lk", role: UserRole.FINANCE, department: "FINANCE" },
-            { firstName: "Nuwan", lastName: "Bandara", email: "exam@ijse.lk", role: UserRole.EXAM, department: "EXAM" },
-            { firstName: "Dr. Chamara", lastName: "Jayasinghe", email: "lecturer@ijse.lk", role: UserRole.LECTURER, department: "ACADEMIC" }
+            { firstName: "Nimal", lastName: "Perera", email: "marketing@ijse.lk", role: UserRole.MARKETING, department: "MARKETING", position: "Head of Marketing & Admissions", phone: "+94 11 234 5671", departmentKey: "marketing" },
+            { firstName: "Kasun", lastName: "Silva", email: "academic@ijse.lk", role: UserRole.ACADEMIC, department: "ACADEMIC", position: "Academic Coordinator", phone: "+94 11 234 5672", departmentKey: "academic" },
+            { firstName: "Amali", lastName: "Fernando", email: "finance@ijse.lk", role: UserRole.FINANCE, department: "FINANCE", position: "Head of Finance / CFO", phone: "+94 11 234 5673", departmentKey: "finance" },
+            { firstName: "Nuwan", lastName: "Bandara", email: "exam@ijse.lk", role: UserRole.EXAM, department: "EXAM", position: "Head of Examination / Controller of Exams", phone: "+94 11 234 5674", departmentKey: "exam" },
+            { firstName: "Niroth", lastName: "Samarawickrama", email: "niroth.s@ijse.lk", role: UserRole.LECTURER, department: "ACADEMIC", position: "Head of Academic Affairs / Senior Lecturer", phone: "+94 11 234 5675", departmentKey: "academic", assignedModules: ["OOP", "SE"] },
+            { firstName: "Suranga", lastName: "Fernando", email: "suranga.f@ijse.lk", role: UserRole.LECTURER, department: "ACADEMIC", position: "Senior Lecturer - Enterprise Java & Cloud Systems", phone: "+94 11 234 5676", departmentKey: "academic", assignedModules: ["OOP", "EAD"] },
+            { firstName: "Danuja", lastName: "Vimukthi", email: "danuja.v@ijse.lk", role: UserRole.LECTURER, department: "ACADEMIC", position: "Senior Lecturer - Modern Full Stack Engineering", phone: "+94 11 234 5677", departmentKey: "academic", assignedModules: ["WEB", "PRF"] },
+            { firstName: "Janith", lastName: "Sandaruwan", email: "janith.s@ijse.lk", role: UserRole.LECTURER, department: "ACADEMIC", position: "Lecturer - Data Structures & Mobile Development", phone: "+94 11 234 5678", departmentKey: "academic", assignedModules: ["PRF"] },
+            { firstName: "Achini", lastName: "Wickramasinghe", email: "achini.w@ijse.lk", role: UserRole.LECTURER, department: "ACADEMIC", position: "Lecturer - Database Systems & Business Analytics", phone: "+94 11 234 5679", departmentKey: "academic", assignedModules: ["DBMS"] }
         ];
 
         for (const off of officers) {
             const hash = await bcrypt.hash("officer123", 12);
-            await User.findOneAndUpdate(
+            const user = await User.findOneAndUpdate(
                 { email: off.email.toLowerCase() },
                 {
                     firstName: off.firstName,
@@ -238,7 +243,24 @@ export const seedMasterData = async () => {
                 },
                 { upsert: true, new: true }
             );
+
+            await Lecturer.findOneAndUpdate(
+                { email: off.email.toLowerCase() },
+                {
+                    userId: user._id,
+                    name: `${off.firstName} ${off.lastName}`,
+                    email: off.email.toLowerCase(),
+                    phone: off.phone,
+                    position: off.position,
+                    departmentKey: off.departmentKey,
+                    assignedModules: off.assignedModules || [],
+                    isPublic: true,
+                    status: "ACTIVE"
+                },
+                { upsert: true, new: true }
+            );
         }
+        console.log("Real officers and lecturers seeded.");
 
         // 9. Seed Sample Student Account
         // Format: ID "HDSE75-00001", Institutional email "hiruni,hdse75@ijse.com"

@@ -103,7 +103,7 @@ const studentSchema = new Schema<IStudent>(
         status: {
             type: String,
             enum: Object.values(StudentStatus),
-            default: StudentStatus.PENDING_ACTIVATION
+            default: StudentStatus.ACTIVATED
         },
 
         registeredDate: {

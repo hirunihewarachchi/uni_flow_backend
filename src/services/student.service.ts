@@ -229,6 +229,17 @@ export const updateStudent = async (
         }
     );
 
+    if (student && student.userId) {
+        const userUpdate: any = {};
+        if (studentData.firstName) userUpdate.firstName = studentData.firstName;
+        if (studentData.lastName) userUpdate.lastName = studentData.lastName;
+        if (studentData.email) userUpdate.email = studentData.email.toLowerCase();
+        if (studentData.batchNumber) userUpdate.batchNumber = studentData.batchNumber;
+        if (Object.keys(userUpdate).length > 0) {
+            await User.findByIdAndUpdate(student.userId, userUpdate);
+        }
+    }
+
     return student;
 };
 
@@ -238,6 +249,12 @@ export const deleteStudent = async (studentId: string) => {
         ? { _id: studentId }
         : { $or: [{ studentId: studentId }, { registrationNumber: studentId }] };
 
-    const student = await Student.findOneAndDelete(query);
+    const student = await Student.findOne(query);
+    if (!student) return null;
+
+    if (student.userId) {
+        await User.findByIdAndDelete(student.userId);
+    }
+    await Student.findByIdAndDelete(student._id);
     return student;
 };

@@ -66,6 +66,94 @@ const moduleAssignmentLibrary: Record<string, { title: string; description: stri
             difficulty: "Intermediate",
             duration: "75 minutes"
         }
+    ],
+    SE: [
+        {
+            title: "Software Requirements Specification",
+            description: "Author comprehensive functional and non-functional requirements with UML use case diagrams.",
+            difficulty: "Beginner",
+            duration: "60 minutes"
+        },
+        {
+            title: "Layered Architecture Implementation",
+            description: "Implement a 3-tier layered architecture application strictly complying with SOLID design principles.",
+            difficulty: "Intermediate",
+            duration: "90 minutes"
+        }
+    ]
+};
+
+// High-Level Honors and Advanced assignments for students scoring >= 75%
+export const honorsAssignmentLibrary: Record<string, { title: string; description: string; difficulty: "Advanced" | "Honors"; duration: string }[]> = {
+    PRF: [
+        {
+            title: "Honors Challenge: Advanced Algorithmic Complexity & Bare-Metal Memory Pool",
+            description: "Implement high-performance cache-aware data structures and an arena-based memory allocation pool simulating bare-metal JVM memory management.",
+            difficulty: "Honors",
+            duration: "120 minutes"
+        },
+        {
+            title: "Competitive Problem Solving: Dynamic Programming & Bit Manipulation",
+            description: "Solve hard-tier graph pathfinding, multi-state dynamic programming, and bitwise optimization challenges without third-party libraries.",
+            difficulty: "Advanced",
+            duration: "90 minutes"
+        }
+    ],
+    OOP: [
+        {
+            title: "Honors Challenge: Custom Inversion-of-Control (IoC) & Dependency Injection Container",
+            description: "Architect a custom Reflection-driven IoC container supporting @Component, @Autowired, Singleton/Prototype lifecycle scopes, and circular dependency resolution.",
+            difficulty: "Honors",
+            duration: "150 minutes"
+        },
+        {
+            title: "Enterprise Architecture: Event-Driven CQRS & Domain-Driven Design (DDD)",
+            description: "Implement an enterprise banking aggregate root with immutable domain event streams, command handlers, and write-model decoupling.",
+            difficulty: "Advanced",
+            duration: "120 minutes"
+        }
+    ],
+    DBMS: [
+        {
+            title: "Honors Challenge: Storage Engine Internals & B+ Tree Indexing",
+            description: "Implement an in-memory B+ Tree index with Write-Ahead Logging (WAL), page buffer manager, and ACID crash-recovery simulation.",
+            difficulty: "Honors",
+            duration: "180 minutes"
+        },
+        {
+            title: "Enterprise Challenge: Distributed Sharding & EXPLAIN Query Tuning",
+            description: "Design a horizontally partitioned database router with read-replica replication, deadlock detection, and sub-millisecond query plan optimization.",
+            difficulty: "Advanced",
+            duration: "120 minutes"
+        }
+    ],
+    WEB: [
+        {
+            title: "Honors Challenge: Reactive Virtual DOM & Reconciler from Scratch",
+            description: "Construct a lightweight reactive UI framework featuring a custom Virtual DOM tree diffing reconciler, batching scheduler, and reactive hooks.",
+            difficulty: "Honors",
+            duration: "150 minutes"
+        },
+        {
+            title: "Production Challenge: Real-Time CRDT Collaborative Multi-User Canvas",
+            description: "Build a distributed collaborative editor using Conflict-Free Replicated Data Types (CRDTs), WebSockets, and WebRTC fallback channels.",
+            difficulty: "Advanced",
+            duration: "120 minutes"
+        }
+    ],
+    SE: [
+        {
+            title: "Honors Challenge: Chaos Engineering & Distributed Resilience Blueprint",
+            description: "Author a mission-critical distributed systems architecture blueprint and execute automated Chaos Engineering failure injection scenarios.",
+            difficulty: "Honors",
+            duration: "180 minutes"
+        },
+        {
+            title: "Enterprise Challenge: Zero-Downtime Microservices Mesh & Istio Routing",
+            description: "Deploy a resilient microservices mesh with automated canary routing, distributed OpenTelemetry tracing, and circuit breakers.",
+            difficulty: "Advanced",
+            duration: "120 minutes"
+        }
     ]
 };
 
@@ -279,6 +367,53 @@ const baseCareerTemplates: ICareerOption[] = [
                 task: "Implement automated browser smoke tests for critical user journeys."
             }
         ]
+    },
+    {
+        id: "cloud-engineer",
+        title: "Cloud & DevOps Engineer",
+        category: "Cloud & Infrastructure",
+        description: "Architect resilient cloud infrastructure, automate deployment pipelines (CI/CD), and monitor distributed containerized services.",
+        skills: [
+            "Linux systems and bash scripting",
+            "Docker and Kubernetes container orchestration",
+            "Cloud computing platforms (AWS / Azure)",
+            "Infrastructure as Code (Terraform)",
+            "CI/CD automation pipelines (GitHub Actions)",
+            "System monitoring, Prometheus and Grafana"
+        ],
+        matchScore: 0,
+        roadmap: [
+            {
+                phase: "Phase 01 - Systems & Scripting",
+                duration: "Weeks 1-3",
+                topics: [
+                    "Linux operating system internals & networking fundamentals",
+                    "Advanced Bash scripting & automation routines",
+                    "Git branching workflows and repository management"
+                ],
+                task: "Automate server health inspection and log archival across remote virtual instances using Bash."
+            },
+            {
+                phase: "Phase 02 - Containers & CI/CD",
+                duration: "Weeks 4-8",
+                topics: [
+                    "Docker multi-stage builds & container security",
+                    "GitHub Actions CI/CD workflows and automated releases",
+                    "Kubernetes pods, services, ingress controllers, and configmaps"
+                ],
+                task: "Containerize a microservice application and build a continuous deployment pipeline to Kubernetes."
+            },
+            {
+                phase: "Phase 03 - Cloud Architecture & Observability",
+                duration: "Weeks 9-12",
+                topics: [
+                    "AWS core services (EC2, ECS, S3, RDS, VPC)",
+                    "Infrastructure as Code with Terraform",
+                    "Prometheus metrics scraping and Grafana dashboard alerts"
+                ],
+                task: "Provision an automated multi-AZ cloud architecture with live traffic monitoring and alerting."
+            }
+        ]
     }
 ];
 
@@ -356,19 +491,32 @@ export const analyzeStudentSkillGap = async (studentId: string) => {
     const strongModules = results.filter(r => r.marks >= 75);
     const weakModules = results.filter(r => r.marks < 75).sort((a, b) => a.marks - b.marks);
 
-    // Build module gaps
+    // Build module gaps with tailored Honors assignments for >= 75%
     const moduleGaps = results.map(r => {
-        const code = r.moduleCode || r.subject.replace(/[^A-Za-z]/g, "").slice(0, 4).toUpperCase();
-        const level = r.marks >= 75 ? "Strong" : r.marks >= 50 ? "Moderate" : "Needs Improvement";
-        const priority = r.marks < 50 ? "High Priority" : r.marks < 75 ? "Improvement Needed" : "Satisfactory";
+        const raw = (r.moduleCode || r.subject).toUpperCase();
+        const code = raw.includes("PRF") ? "PRF" : raw.includes("OOP") ? "OOP" : raw.includes("DBMS") ? "DBMS" : raw.includes("WEB") ? "WEB" : "SE";
+        const isHonors = r.marks >= 75;
+        const level = isHonors ? "Strong" : r.marks >= 50 ? "Moderate" : "Needs Improvement";
+        const priority = isHonors ? "Satisfactory" : r.marks < 50 ? "High Priority" : "Improvement Needed";
 
-        let defaultFocus = "Review fundamental concepts, practical assignments, and problem-solving exercises.";
-        if (code === "DBMS") defaultFocus = "Strengthen SQL queries, database design, keys, relationships and JOIN operations.";
-        if (code === "OOP") defaultFocus = "Revise classes, objects, constructors, encapsulation, inheritance, and polymorphism.";
-        if (code === "PRF") defaultFocus = "Practise programming logic, variables, conditions, loops, arrays, and methods.";
+        let defaultFocus = isHonors
+            ? "Advanced Honors Track: Undertake enterprise architecture challenges, custom framework implementations, and production-grade system designs."
+            : "Review fundamental concepts, practical assignments, and problem-solving exercises.";
 
-        const tasks = (moduleAssignmentLibrary[code] || moduleAssignmentLibrary["PRF"]).map((task, index) => ({
-            id: `${student.studentId || student.registrationNumber}-${code}-${index}`,
+        if (!isHonors) {
+            if (code === "DBMS") defaultFocus = "Strengthen SQL queries, database design, keys, relationships and JOIN operations.";
+            if (code === "OOP") defaultFocus = "Revise classes, objects, constructors, encapsulation, inheritance, and polymorphism.";
+            if (code === "PRF") defaultFocus = "Practise programming logic, variables, conditions, loops, arrays, and methods.";
+            if (code === "WEB") defaultFocus = "Practise modern responsive UI design, asynchronous fetch patterns, and REST integration.";
+            if (code === "SE") defaultFocus = "Review SDLC phases, requirement specifications, UML design, and layered architecture.";
+        }
+
+        const assignmentSource = isHonors
+            ? (honorsAssignmentLibrary[code] || honorsAssignmentLibrary["PRF"])
+            : (moduleAssignmentLibrary[code] || moduleAssignmentLibrary["PRF"]);
+
+        const tasks = assignmentSource.map((task, index) => ({
+            id: `${student.studentId || student.registrationNumber}-${code}-${isHonors ? "honors" : "remedial"}-${index}`,
             title: task.title,
             description: task.description,
             difficulty: task.difficulty,
@@ -388,10 +536,12 @@ export const analyzeStudentSkillGap = async (studentId: string) => {
 
     // Default synthesis
     let analysisSummary = `${student.firstName}, based on your ${results.length} published examination records, your overall average is ${averageMarks}%. `;
-    if (weakModules.length > 0) {
-        analysisSummary += `Your results indicate that ${weakModules.map(m => m.moduleCode || m.subject).join(", ")} requires additional attention. ${weakModules[0].moduleCode || weakModules[0].subject} is your highest priority improvement area (${weakModules[0].marks}%). Follow the personalized learning roadmap below to strengthen your understanding.`;
+    if (strongModules.length > 0 && weakModules.length > 0) {
+        analysisSummary += `You have demonstrated honors-level mastery in ${strongModules.map(m => m.moduleCode || m.subject).join(", ")} (≥75%)! We have unlocked High-Level Honors & Architecture Challenges for these subjects to elevate you to senior developer standards. For ${weakModules.map(m => m.moduleCode || m.subject).join(", ")}, follow the targeted practice roadmaps to reinforce foundational mastery.`;
+    } else if (strongModules.length > 0) {
+        analysisSummary += `Outstanding excellence! You have achieved honors-level scores (≥75%) across all evaluated modules. You have been placed on the Advanced Honors & Enterprise Track with high-level system design challenges, custom framework implementations, and research-level assignments.`;
     } else {
-        analysisSummary += `Outstanding performance! All your published module results meet or exceed the target threshold of 75%. Continue your revision and practical projects to maintain your technical proficiency.`;
+        analysisSummary += `Your results show areas for rapid improvement. Follow the structured step-by-step assignments below, prioritizing ${weakModules[0].moduleCode || weakModules[0].subject} (${weakModules[0].marks}%), to build confidence and exam readiness.`;
     }
 
     // Try calling external Gemini AI for enhanced synthesis
@@ -484,24 +634,38 @@ export const getStudentCareerRoadmap = async (studentId: string) => {
         if (key.includes("SE") || key.includes("SOFTWARE")) marksMap.SE = r.marks;
     }
 
-    // Calculate match scores
+    // Calculate accurate weighted match scores
     const calculatedCareers = baseCareerTemplates.map(c => {
         let score = 50;
-        if (c.id === "business-analyst") {
-            score = Math.round(((marksMap.SE || 50) + (marksMap.DBMS || 50) + (marksMap.OOP || 50)) / 3);
+        const prf = marksMap.PRF ?? 50;
+        const oop = marksMap.OOP ?? 50;
+        const dbms = marksMap.DBMS ?? 50;
+        const web = marksMap.WEB ?? 50;
+        const se = marksMap.SE ?? 50;
+
+        if (c.id === "software-engineer") {
+            // Software Engineer: OOP 35%, WEB 30%, PRF 20%, DBMS 15%
+            score = Math.round((oop * 0.35) + (web * 0.30) + (prf * 0.20) + (dbms * 0.15));
         } else if (c.id === "ai-engineer") {
-            score = Math.round(((marksMap.PRF || 50) + (marksMap.DBMS || 50) + (marksMap.OOP || 50)) / 3);
-        } else if (c.id === "software-engineer") {
-            score = Math.round(((marksMap.PRF || 50) + (marksMap.OOP || 50) + (marksMap.WEB || 50)) / 3);
+            // AI Engineer: PRF 40%, DBMS 25%, OOP 20%, SE 15%
+            score = Math.round((prf * 0.40) + (dbms * 0.25) + (oop * 0.20) + (se * 0.15));
         } else if (c.id === "data-analyst") {
-            score = Math.round(((marksMap.DBMS || 50) + (marksMap.PRF || 50)) / 2);
+            // Data Analyst: DBMS 50%, PRF 25%, SE 25%
+            score = Math.round((dbms * 0.50) + (prf * 0.25) + (se * 0.25));
         } else if (c.id === "qa-engineer") {
-            score = Math.round(((marksMap.SE || 50) + (marksMap.WEB || 50) + (marksMap.DBMS || 50)) / 3);
+            // QA Engineer: SE 40%, WEB 30%, DBMS 15%, OOP 15%
+            score = Math.round((se * 0.40) + (web * 0.30) + (dbms * 0.15) + (oop * 0.15));
+        } else if (c.id === "business-analyst") {
+            // Business Analyst: SE 45%, DBMS 30%, PRF 25%
+            score = Math.round((se * 0.45) + (dbms * 0.30) + (prf * 0.25));
+        } else if (c.id === "cloud-engineer") {
+            // Cloud & DevOps: WEB 35%, SE 35%, DBMS 30%
+            score = Math.round((web * 0.35) + (se * 0.35) + (dbms * 0.30));
         }
 
         return {
             ...c,
-            matchScore: score
+            matchScore: Math.min(99, Math.max(30, score))
         };
     }).sort((a, b) => b.matchScore - a.matchScore);
 

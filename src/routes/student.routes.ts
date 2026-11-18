@@ -82,7 +82,23 @@ router.put(
         UserRole.ADMIN,
         UserRole.SUPER_ADMIN,
         UserRole.MARKETING,
-        UserRole.MARKETING_OFFICER
+        UserRole.MARKETING_OFFICER,
+        UserRole.ACADEMIC,
+        UserRole.ACADEMIC_OFFICER
+    ),
+    editStudent
+);
+
+router.patch(
+    "/:id",
+    authenticate,
+    authorizeRoles(
+        UserRole.ADMIN,
+        UserRole.SUPER_ADMIN,
+        UserRole.MARKETING,
+        UserRole.MARKETING_OFFICER,
+        UserRole.ACADEMIC,
+        UserRole.ACADEMIC_OFFICER
     ),
     editStudent
 );
@@ -95,7 +111,9 @@ router.delete(
         UserRole.ADMIN,
         UserRole.SUPER_ADMIN,
         UserRole.MARKETING,
-        UserRole.MARKETING_OFFICER
+        UserRole.MARKETING_OFFICER,
+        UserRole.ACADEMIC,
+        UserRole.ACADEMIC_OFFICER
     ),
     removeStudent
 );
